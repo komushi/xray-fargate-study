@@ -1,0 +1,59 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Stack to Create Security Group Settings.
+
+Parameters:
+  VpcId:
+    Description: ID of VPC
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  PublicFacingSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId:
+        Ref: VpcId  
+      GroupDescription: Database Security Group for AWS Glue Study
+      Tags: 
+        - Key: Name
+          Value: XrayPublicFacingSecurityGroup
+  SelfRerencingSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: 
+      GroupId:
+        Ref: PublicFacingSecurityGroup
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      SourceSecurityGroupId:
+        Ref: PublicFacingSecurityGroup
+  HttpSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: 
+      GroupId:
+        Ref: PublicFacingSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+  HttpsSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties: 
+      GroupId:
+        Ref: PublicFacingSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+  SelfRerencingSecurityGroupEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties: 
+      GroupId:
+        Ref: PublicFacingSecurityGroup
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      CidrIp: 0.0.0.0/0
+Outputs:
+  SecurityGroupArn:
+    Value: !GetAtt PublicFacingSecurityGroup.GroupId

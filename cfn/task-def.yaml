@@ -1,0 +1,83 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Stack to Create Fargate Task Definition
+
+Parameters:
+  StackName:
+    Type: String
+  Service:
+    Type: String
+  EcsTaskExecutionRoleArn:
+    Type: String
+  EcsTaskRoleArn:
+    Type: String
+  AlbServiceDns:
+    Type: String
+
+Resources:
+  LogGroupService:
+    Type: "AWS::Logs::LogGroup"
+    Properties: 
+      LogGroupName: !Sub /ecs/${Service}-${StackName}
+
+  DefService:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties: 
+      Family: !Sub def-${Service}-${StackName}
+      RequiresCompatibilities:
+        - "FARGATE"
+      ExecutionRoleArn:
+        Ref: EcsTaskExecutionRoleArn
+      Memory: "512"
+      Cpu: "256"
+      TaskRoleArn:
+        Ref: EcsTaskRoleArn
+      NetworkMode: "awsvpc"
+      ContainerDefinitions: 
+        - 
+          Name: !Sub ${Service}-${StackName}
+          Image: !Sub komushi/${Service}
+          Essential: "true"
+          PortMappings:
+            -
+              ContainerPort: 8080
+              HostPort: 8080
+              Protocol: "http"
+          Environment:
+            -
+              Name: API_CNAME
+              Value: !Sub ${AlbServiceDns}
+            -
+              Name: AWS_XRAY_DAEMON_ADDRESS
+              Value: ""
+          LogConfiguration: 
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Ref LogGroupService
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: "ecs"
+        - 
+          Name: xray-daemon
+          Image: !Sub komushi/xray-daemon
+          Essential: "true"
+          PortMappings:
+            -
+              ContainerPort: 2000
+              HostPort: 2000
+              Protocol: "udp"
+          Environment:
+            -
+              Name: AWS_XRAY_DAEMON_ADDRESS
+              Value: ""
+          LogConfiguration: 
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Ref LogGroupService
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: "ecs"
+
+Outputs:
+  DefService:
+    Value:
+      Ref: DefService
+

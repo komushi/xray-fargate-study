@@ -1,0 +1,60 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Stack to Create ElasticLoadBalancingV2 Resources
+Parameters:
+  StackName:
+    Type: String
+  Service:
+    Type: String
+  VpcId:
+    Description: Name of VPC
+    Type: AWS::EC2::VPC::Id
+  PublicSubnets:
+    Description: Choose which PublicSubnets the Applicaion Load Balancer should be deployed to
+    Type: List<AWS::EC2::Subnet::Id>
+  SecurityGroup:
+    Description: Select the Security Group to apply to the Applicaion Load Balancer
+    Type: AWS::EC2::SecurityGroup::Id
+Resources:
+  TargetGroupHttp8080:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub tg-http-8080-${Service}-${StackName}
+      TargetType: ip
+      VpcId: !Ref VpcId
+      Port: 8080
+      Protocol: HTTP
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      # UnhealthyThresholdCount: 10
+      # Matcher:
+      #   HttpCode: '405'
+  ListenerHTTP:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroupHttp8080
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub alb-${Service}-${StackName}
+      Type: application
+      Scheme: internet-facing
+      Subnets: !Ref PublicSubnets
+      SecurityGroups: 
+        - !Ref SecurityGroup
+Outputs:
+  LoadBalancerDns: 
+    Description: A reference to the DNS of the LoadBalancer
+    Value: !GetAtt LoadBalancer.DNSName
+  CanonicalHostedZoneID: 
+    Description: A reference to the CanonicalHostedZoneID of the LoadBalancer
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+  TargetGroupArn:
+    Value: !Ref TargetGroupHttp8080
